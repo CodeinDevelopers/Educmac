@@ -784,3 +784,208 @@ function can_view_exam_results($enroll_id, $exam_id, $session_id)
         'message' => $message
     );
 }
+
+/**
+ * Get current active term ID
+ *
+ * @param int|null $session_id Session ID (defaults to current session)
+ * @param int|null $branch_id Branch ID (defaults to current branch)
+ * @return int|null Term ID or null if not found
+ */
+function get_term_id($session_id = null, $branch_id = null)
+{
+    $ci = &get_instance();
+
+    if (!$ci->db->table_exists('academic_terms')) {
+        return null;
+    }
+
+    // Check for manually set term first
+    $manually_set_term_id = $ci->session->userdata('manually_set_term_id');
+    if (!empty($manually_set_term_id)) {
+        return $manually_set_term_id;
+    }
+
+    if (!$session_id) {
+        $session_id = get_session_id();
+    }
+
+    if (!$branch_id) {
+        $branch_id = $ci->application_model->get_branch_id();
+    }
+
+    if (empty($session_id) || empty($branch_id)) {
+        return null;
+    }
+
+    $current_date = date('Y-m-d');
+
+    // Try to find term by current date
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->where('start_date <=', $current_date);
+    $ci->db->where('end_date >=', $current_date);
+    $term = $ci->db->get('academic_terms')->row();
+
+    if ($term) {
+        return $term->id;
+    }
+
+    // Fallback to active term
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->where('is_active', 1);
+    $term = $ci->db->get('academic_terms')->row();
+
+    if ($term) {
+        return $term->id;
+    }
+
+    // Fallback to first term
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->order_by('term_order', 'ASC');
+    $ci->db->limit(1);
+    $term = $ci->db->get('academic_terms')->row();
+
+    return $term ? $term->id : null;
+}
+
+/**
+ * Get current active term object
+ *
+ * @param int|null $session_id Session ID (defaults to current session)
+ * @param int|null $branch_id Branch ID (defaults to current branch)
+ * @return object|null Term object or null if not found
+ */
+function get_current_term($session_id = null, $branch_id = null)
+{
+    $ci = &get_instance();
+
+    if (!$ci->db->table_exists('academic_terms')) {
+        return null;
+    }
+
+    if (!$session_id) {
+        $session_id = get_session_id();
+    }
+
+    if (!$branch_id) {
+        $branch_id = $ci->application_model->get_branch_id();
+    }
+
+    if (empty($session_id) || empty($branch_id)) {
+        return null;
+    }
+
+    $current_date = date('Y-m-d');
+
+    // Try to find term by current date
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->where('start_date <=', $current_date);
+    $ci->db->where('end_date >=', $current_date);
+    $term = $ci->db->get('academic_terms')->row();
+
+    if ($term) {
+        return $term;
+    }
+
+    // Fallback to active term
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->where('is_active', 1);
+    $term = $ci->db->get('academic_terms')->row();
+
+    if ($term) {
+        return $term;
+    }
+
+    // Fallback to first term
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->order_by('term_order', 'ASC');
+    $ci->db->limit(1);
+    $term = $ci->db->get('academic_terms')->row();
+
+    return $term;
+}
+
+/**
+ * Get all terms for a session
+ *
+ * @param int|null $session_id Session ID (defaults to current session)
+ * @param int|null $branch_id Branch ID (defaults to current branch)
+ * @return array Array of term objects
+ */
+function get_session_terms($session_id = null, $branch_id = null)
+{
+    $ci = &get_instance();
+
+    if (!$ci->db->table_exists('academic_terms')) {
+        return array();
+    }
+
+    if (!$session_id) {
+        $session_id = get_session_id();
+    }
+
+    if (!$branch_id) {
+        $branch_id = $ci->application_model->get_branch_id();
+    }
+
+    if (empty($session_id) || empty($branch_id)) {
+        return array();
+    }
+
+    $ci->db->select('*');
+    $ci->db->from('academic_terms');
+    $ci->db->where('session_id', $session_id);
+    $ci->db->where('branch_id', $branch_id);
+    $ci->db->order_by('term_order', 'ASC');
+    $query = $ci->db->get();
+
+    if ($query && $query->num_rows() > 0) {
+        return $query->result();
+    }
+
+    return array();
+}
+
+/**
+ * Get term name by ID
+ *
+ * @param int $term_id Term ID
+ * @return string Term name or empty string
+ */
+function get_term_name($term_id)
+{
+    if (empty($term_id)) {
+        return '';
+    }
+
+    $ci = &get_instance();
+
+    if (!$ci->db->table_exists('academic_terms')) {
+        // Fallback to exam_term if academic_terms doesn't exist
+        if ($ci->db->table_exists('exam_term')) {
+            $term = $ci->db->get_where('exam_term', array('id' => $term_id))->row();
+            return $term ? $term->name : '';
+        }
+        return '';
+    }
+
+    $term = $ci->db->get_where('academic_terms', array('id' => $term_id))->row();
+    return $term ? $term->term_name : '';
+}
+
+/**
+ * Check if academic terms system is enabled
+ *
+ * @return bool True if academic_terms table exists
+ */
+function academic_terms_enabled()
+{
+    $ci = &get_instance();
+    return $ci->db->table_exists('academic_terms');
+}
