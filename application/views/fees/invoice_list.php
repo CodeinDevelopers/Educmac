@@ -8,7 +8,7 @@
 			<?php echo form_open($this->uri->uri_string(), array('class' => 'search_form'));?>
 			<div class="panel-body">
 				<div class="row mb-sm">
-				<?php if (is_superadmin_loggedin() ): ?>
+				<?php if (!is_superadmin_loggedin() ): ?>
 					<div class="col-md-4">
 						<div class="form-group">
 							<label class="control-label"><?=translate('branch')?> <span class="required">*</span></label>

@@ -510,6 +510,45 @@ class Sessions extends Admin_Controller
     }
 
     /**
+     * Set active branch for super admin
+     */
+    public function set_branch($branch_id = '')
+    {
+        if (!is_superadmin_loggedin()) {
+            redirect(base_url(), 'refresh');
+            return;
+        }
+
+        $branch_id = urldecode($this->security->xss_clean($branch_id));
+
+        if (!empty($branch_id)) {
+            // Verify branch exists and is active
+            $branch = $this->db->get_where('branch', [
+                'id' => $branch_id,
+                'status' => 1
+            ])->row();
+
+            if (!empty($branch)) {
+                // Set the branch in session
+                $this->session->set_userdata('loggedin_branch', $branch_id);
+
+                // Clear manually set term so it auto-switches to active term of new branch
+                $this->session->unset_userdata('manually_set_term_id');
+
+                set_alert('success', 'Branch switched to ' . $branch->name);
+            } else {
+                set_alert('error', 'Invalid branch selected');
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_REFERER'])) {
+            redirect($_SERVER['HTTP_REFERER']);
+        } else {
+            redirect(base_url('dashboard'), 'refresh');
+        }
+    }
+
+    /**
      * Set active term manually
      */
     public function set_term($term_id = '')
@@ -535,6 +574,11 @@ class Sessions extends Admin_Controller
             ])->row();
 
             if (!empty($term)) {
+                // For super admin and admin, permanently activate the term in database
+                if (is_superadmin_loggedin() || is_admin_loggedin()) {
+                    $this->set_active_term($term_id);
+                }
+
                 $this->session->set_userdata('manually_set_term_id', $term_id);
                 set_alert('success', 'Term switched to ' . $term->term_name);
             } else {

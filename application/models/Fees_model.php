@@ -113,6 +113,12 @@ class Fees_model extends MY_Model
         $this->db->join("transport_fee_details", "transport_fee_details.id = fee_payment_history.transport_fee_details_id", "left");
         $this->db->where("fee_allocation.student_id", $enrollID);
         $this->db->where("fee_allocation.session_id", $sessionID);
+
+        // Add term_id filter for payment history if provided
+        if (!empty($termID)) {
+            $this->db->where("fee_allocation.term_id", $termID);
+        }
+
         $this->db->or_group_start();
         $this->db->where("transport_fee_details.enroll_id", $enrollID);
         $this->db->group_end();
@@ -128,11 +134,19 @@ class Fees_model extends MY_Model
         return array('status' => $status, 'invoice_no' => $invNo);
     }
 
-    public function getInvoiceDetails($enrollID = '')
+    public function getInvoiceDetails($enrollID = '', $termID = null)
     {
         $sql = "SELECT `fee_allocation`.`group_id`,`fee_allocation`.`prev_due`,`fee_allocation`.`id` as `allocation_id`, `fees_type`.`name`, `fees_type`.`system`, `fee_groups_details`.`amount`, `fee_groups_details`.`due_date`, `fee_groups_details`.`fee_type_id` FROM `fee_allocation` LEFT JOIN
         `fee_groups_details` ON `fee_groups_details`.`fee_groups_id` = `fee_allocation`.`group_id` LEFT JOIN `fees_type` ON `fees_type`.`id` = `fee_groups_details`.`fee_type_id` WHERE
-        `fee_allocation`.`student_id` = " . $this->db->escape($enrollID) . " AND `fee_allocation`.`session_id` = " . $this->db->escape(get_session_id()) . " ORDER BY `fee_allocation`.`group_id` ASC, `fees_type`.`id` ASC";
+        `fee_allocation`.`student_id` = " . $this->db->escape($enrollID) . " AND `fee_allocation`.`session_id` = " . $this->db->escape(get_session_id());
+
+        // Add term_id filter if provided
+        if (!empty($termID)) {
+            $sql .= " AND `fee_allocation`.`term_id` = " . $this->db->escape($termID);
+        }
+
+        $sql .= " ORDER BY `fee_allocation`.`group_id` ASC, `fees_type`.`id` ASC";
+
         $student = array();
         $r = $this->db->query($sql)->result_array();
         foreach ($r as $key => $value) {
@@ -243,7 +257,7 @@ class Fees_model extends MY_Model
         // getting a list of classes assigned to a teacher
         $assigned_cs_list = $this->app_lib->get_ownClassSection();
 
-        $this->datatables->select('e.id as enroll_id,e.student_id,e.roll,s.first_name,s.last_name,s.register_no,s.mobileno,c.name as class_name,se.name as section_name');
+        $this->datatables->select('e.id as enroll_id,e.student_id,e.roll,s.first_name,s.last_name,s.register_no,s.mobileno,c.name as class_name,se.name as section_name,fa.term_id');
         $this->datatables->from('fee_allocation as fa');
         $this->datatables->join('enroll as e', 'e.id = fa.student_id and e.session_id = fa.session_id', 'inner');
         $this->datatables->join('student as s', 's.id = e.student_id', 'left');
@@ -290,7 +304,11 @@ class Fees_model extends MY_Model
             // actions btn
             $actions = '<button type="button" data-loading-text="<i class=\'fas fa-spinner fa-spin\'></i>" data-placement="top" data-toggle="tooltip" data-original-title="' . translate('email') . " " . translate('invoice') . '" class="btn btn-default icon btn-circle" onclick="pdf_sendByemail(' . "'" . $record->enroll_id . "'" . ', this)"><i class="fa-solid fa-envelope"></i></button>';
             if (get_permission('collect_fees', 'is_add')) {
-                $actions .= '<a href="' . base_url('fees/invoice/' . $record->enroll_id) . '" class="btn btn-default btn-circle"><i class="far fa-arrow-alt-circle-right"></i> ' . translate('collect') . '</a>';
+                // Add term_id to invoice URL if available
+                $allocation_term = (!empty($term_id) && !empty($record->term_id) && $record->term_id > 0)
+                    ? '?term_id=' . $record->term_id
+                    : '';
+                $actions .= '<a href="' . base_url('fees/invoice/' . $record->enroll_id . $allocation_term) . '" class="btn btn-default btn-circle"><i class="far fa-arrow-alt-circle-right"></i> ' . translate('collect') . '</a>';
             }
             if (get_permission('invoice', 'is_delete')) {
                 $actions .= btn_delete('fees/invoice_delete/' . $record->enroll_id);

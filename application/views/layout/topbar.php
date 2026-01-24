@@ -190,6 +190,103 @@ if (!empty($get_session)) {
 				</div>
 			</li>
 <?php } ?>
+<?php
+// Branch switcher for super admin only
+if (is_superadmin_loggedin()) {
+	$all_branches = $this->db->select('id,name')->where('status', 1)->order_by('name', 'ASC')->get('branch')->result();
+	$current_branch_id = get_loggedin_branch_id();
+?>
+			<!-- branch switcher box (super admin only) -->
+			<li>
+				<a href="#" class="dropdown-toggle header-menu-icon" data-toggle="dropdown">
+					<i class="fas fa-building"></i>
+				</a>
+				<div class="dropdown-menu header-menubox mh-oh">
+					<div class="notification-title">
+						<i class="fas fa-building"></i> <?php echo translate('branch');?>
+					</div>
+					<div class="content hbox pr-none">
+						<div class="scrollable visible-slider dh-tf" data-plugin-scrollable>
+							<div class="scrollable-content">
+								<ul>
+<?php foreach ($all_branches as $branch) { ?>
+									<li>
+										<a href="<?php echo base_url('sessions/set_branch/' . $branch->id);?>">
+											<?php echo $branch->name;?>
+											<?php echo ($current_branch_id == $branch->id) ? '<i class="fas fa-check"></i>' : ''; ?>
+										</a>
+									</li>
+<?php } ?>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</li>
+<?php
+}
+
+// Get terms for current session and branch
+$current_branch_id = get_loggedin_branch_id();
+$current_session_id = get_session_id();
+$current_terms = get_session_terms($current_session_id, $current_branch_id);
+$active_term = get_active_term();
+
+if (!empty($current_terms)) {
+	$can_switch_term = (is_superadmin_loggedin() || is_admin_loggedin());
+?>
+			<!-- term switcher box -->
+			<li>
+				<a href="#" class="dropdown-toggle header-menu-icon" data-toggle="dropdown">
+					<i class="fas fa-calendar-check"></i>
+				</a>
+				<div class="dropdown-menu header-menubox mh-oh">
+					<div class="notification-title">
+						<i class="fas fa-calendar-check"></i> <?php echo translate('academic_term');?>
+					</div>
+					<div class="content hbox pr-none">
+						<div class="scrollable visible-slider dh-tf" data-plugin-scrollable>
+							<div class="scrollable-content">
+								<ul>
+<?php
+if ($can_switch_term) {
+	// Super admin and admin can switch terms
+	foreach ($current_terms as $term) {
+		$is_active = (!empty($active_term) && $active_term->id == $term->id);
+?>
+									<li>
+										<a href="<?php echo base_url('sessions/set_term/' . $term->id);?>">
+											<?php echo $term->term_name;?>
+											<?php echo $is_active ? '<i class="fas fa-check"></i>' : ''; ?>
+										</a>
+									</li>
+<?php
+	}
+} else {
+	// Other roles see only current term (read-only)
+	if (!empty($active_term)) {
+?>
+									<li class="text-center" style="padding: 10px;">
+										<strong><?php echo $active_term->term_name;?></strong>
+										<br><small class="text-muted"><?php echo translate('current_term');?></small>
+									</li>
+<?php
+	} else {
+?>
+									<li class="text-center" style="padding: 10px;">
+										<small class="text-muted"><?php echo translate('no_active_term');?></small>
+									</li>
+<?php
+	}
+}
+?>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</li>
+<?php } ?>
 			<!-- languages switcher box -->
 			<li>
 				<a href="#" class="dropdown-toggle header-menu-icon" data-toggle="dropdown">

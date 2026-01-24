@@ -179,7 +179,7 @@ if ($extINTL == true) {
 										$total_balance = 0;
 										$total_amount = 0;
 										$typeData = array('' => translate('select'));
-										$allocations = $this->fees_model->getInvoiceDetails($basic['enroll_id']);
+										$allocations = $this->fees_model->getInvoiceDetails($basic['enroll_id'], $selected_term_id);
 										foreach ($allocations as $row) {
 											$deposit = $this->fees_model->getStudentFeeDeposit($row['allocation_id'], $row['fee_type_id']);
 											$type_discount = $deposit['total_discount'];
